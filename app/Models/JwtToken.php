@@ -18,7 +18,6 @@ class JwtToken extends Model
     protected $fillable = [
         'user_id',
         'refresh_token',
-        'mini_app_uuid',
         'roles',
         'permissions',
         'expires_at',
@@ -73,11 +72,4 @@ class JwtToken extends Model
         return $query->where('expires_at', '>', now());
     }
 
-    /**
-     * Scope to get tokens for a specific mini-app.
-     */
-    public function scopeForMiniApp($query, string $miniAppUuid)
-    {
-        return $query->where('mini_app_uuid', $miniAppUuid);
-    }
 }

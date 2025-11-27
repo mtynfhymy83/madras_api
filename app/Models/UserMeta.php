@@ -12,6 +12,13 @@ class UserMeta extends Model
 
     protected $table = 'ci_user_meta';
 
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
     protected $fillable = [
         'user_id',
         'meta_name',
@@ -23,4 +30,6 @@ class UserMeta extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 }
+
+
 

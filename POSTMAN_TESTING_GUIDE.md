@@ -1,237 +1,259 @@
-# Postman Testing Guide for JWT Authentication API
+# Postman Testing Guide - ETA Login with JWT
 
-This guide will help you test the Register and Login APIs with JWT authentication in Postman.
+Complete guide for testing the ETA login system with Postman.
 
 ## Prerequisites
 
-1. **Install JWT Package** (if not already done):
-   ```bash
-   composer require tymon/jwt-auth
-   php artisan vendor:publish --provider="Tymon\JWTAuth\Providers\LaravelServiceProvider"
-   php artisan jwt:secret
-   ```
+1. **Postman installed** (Desktop or Web)
+2. **Laravel server running** (`php artisan serve`)
+3. **EITA_TOKEN configured** in `.env` file
+4. **Migrations run** (`php artisan migrate`)
 
-2. **Start Laravel Server**:
-   ```bash
-   php artisan serve
-   ```
-   Your API will be available at: `http://localhost:8000` or `http://127.0.0.1:8000`
+## Setup
 
-## API Endpoints
-
-Base URL: `http://localhost:8000/api`
-
-### Public Endpoints (No Authentication Required)
-- `POST /api/register` - Register a new user
-- `POST /api/login` - Login user
-
-### Protected Endpoints (Require JWT Token)
-- `POST /api/logout` - Logout user
-- `POST /api/refresh` - Refresh JWT token
-- `GET /api/me` - Get authenticated user info
-
----
-
-## Postman Setup
-
-### Step 1: Create a New Collection
+### 1. Create a New Collection
 
 1. Open Postman
 2. Click **New** → **Collection**
-3. Name it: "Laravel JWT Auth API"
+3. Name it: `Madras Laravel API`
 4. Click **Create**
 
-### Step 2: Set Collection Variables
+### 2. Set Collection Variables
 
 1. Click on your collection
 2. Go to **Variables** tab
 3. Add these variables:
    - `base_url`: `http://localhost:8000/api`
-   - `token`: (leave empty, will be set automatically)
+   - `access_token`: (leave empty, will be set automatically)
+   - `refresh_token`: (leave empty, will be set automatically)
 
----
+## Request 1: ETA Login
 
-## Testing Register Endpoint
-
-### Request Setup
+### Setup
 
 1. **Method**: `POST`
-2. **URL**: `{{base_url}}/register`
+2. **URL**: `{{base_url}}/auth/eta-login`
 3. **Headers**:
-   - `Content-Type`: `application/json`
-   - `Accept`: `application/json`
-
-4. **Body** (raw JSON):
-   ```json
-   {
-       "username": "testuser",
-       "email": "test@example.com",
-       "password": "password123",
-       "name": "Test",
-       "family": "User",
-       "tel": "09123456789"
-   }
+   ```
+   Content-Type: application/json
+   Accept: application/json
    ```
 
-### Expected Response (Success - 201)
+### Request Body
+
+Go to **Body** tab → Select **raw** → Choose **JSON**
 
 ```json
 {
-    "success": true,
-    "message": "User registered successfully",
-    "data": {
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-        "token_type": "bearer",
-        "expires_in": 3600,
-        "user": {
-            "id": 1,
-            "username": "testuser",
-            "email": "test@example.com",
-            "name": "Test",
-            "family": "User",
-            "displayname": "Test User",
-            "active": true,
-            "approved": false,
-            "level": "user"
-        }
-    }
+    "eitaa_data": "auth_date=1760874684&device_id=0261d09fc99223b94b07ded42c2f340b&query_id=2721441469101642&user={\"id\":10865407,\"first_name\":\"MahdiAli\",\"last_name\":\"Pak\",\"language_code\":\"en\",\"allows_write_to_pm\":true}&hash=cddf185431e041c88eedf8a9bc4e3e7f6f8e2c798fde294018e4b1a5ec9a0f47",
+    "utm": "source=postman&medium=api&campaign=test"
 }
 ```
 
-### Save Token Automatically
+**Important Notes:**
+- Replace the `eitaa_data` with actual ETA init data from your ETA bot
+- The `user` field inside `eitaa_data` must be a JSON string (with escaped quotes)
+- The `hash` must match the calculated hash for validation to pass
+- `utm` is optional
 
-1. In Postman, go to **Tests** tab
-2. Add this script to save the token:
-   ```javascript
-   if (pm.response.code === 201) {
-       var jsonData = pm.response.json();
-       if (jsonData.data && jsonData.data.token) {
-           pm.collectionVariables.set("token", jsonData.data.token);
-           console.log("Token saved:", jsonData.data.token);
-       }
-   }
-   ```
+### Save Tokens Automatically
 
----
+Go to **Tests** tab and add this script:
 
-## Testing Login Endpoint
+```javascript
+// Check if request was successful
+if (pm.response.code === 200 || pm.response.code === 201) {
+    var jsonData = pm.response.json();
+    
+    // Save access token
+    if (jsonData.access_token) {
+        pm.collectionVariables.set("access_token", jsonData.access_token);
+        console.log("✅ Access token saved");
+    }
+    
+    // Save refresh token
+    if (jsonData.refresh_token) {
+        pm.collectionVariables.set("refresh_token", jsonData.refresh_token);
+        console.log("✅ Refresh token saved");
+    }
+    
+    // Log user info
+    if (jsonData.user) {
+        console.log("👤 User:", jsonData.user.username || jsonData.user.displayname);
+        console.log("🆔 User ID:", jsonData.user.id);
+    }
+    
+    // Check if new user
+    if (jsonData.register) {
+        console.log("🆕 New user registered!");
+    } else if (jsonData.login) {
+        console.log("🔐 User logged in!");
+    }
+} else {
+    console.log("❌ Error:", pm.response.json());
+}
+```
 
-### Request Setup
+### Expected Response
 
-1. **Method**: `POST`
-2. **URL**: `{{base_url}}/login`
-3. **Headers**:
-   - `Content-Type`: `application/json`
-   - `Accept`: `application/json`
-
-4. **Body** (raw JSON):
-   ```json
-   {
-       "username": "testuser",
-       "password": "password123",
-       "remember": false
-   }
-   ```
-
-   Or with remember me:
-   ```json
-   {
-       "username": "testuser",
-       "password": "password123",
-       "remember": true
-   }
-   ```
-
-### Expected Response (Success - 200)
-
+**Success (200 or 201):**
 ```json
 {
-    "success": true,
-    "message": "Login successful",
-    "data": {
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-        "token_type": "bearer",
-        "expires_in": 3600,
-        "user": {
-            "id": 1,
-            "username": "testuser",
-            "email": "test@example.com",
-            "name": "Test",
-            "family": "User",
-            "active": true,
-            "approved": false,
-            "level": "user"
-        }
-    }
+    "login": true,
+    "user": {
+        "id": 1,
+        "username": "user_10865407",
+        "name": "MahdiAli",
+        "family": "Pak",
+        "displayname": "MahdiAli Pak",
+        "email": "user_10865407@eitaa.com",
+        "active": true,
+        "approved": true
+    },
+    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+    "refresh_token": "random64characterstring...",
+    "expires_in": 3600,
+    "token_type": "Bearer"
 }
 ```
 
-### Save Token (Same as Register)
-
-Add the same test script in the **Tests** tab to save the token automatically.
-
-### Error Response Examples
-
-**Invalid Credentials (401)**:
+**Error (400/422):**
 ```json
 {
     "success": false,
-    "message": "Invalid credentials or account not active"
+    "message": "دیتا معتبر نمی باشد!",
+    "errors": null
 }
 ```
 
-**Validation Error (422)**:
-```json
-{
-    "success": false,
-    "message": "Validation failed",
-    "errors": {
-        "username": ["The username field is required."],
-        "password": ["The password field is required."]
-    }
-}
-```
+## Request 2: Get Authenticated User (Me)
 
----
-
-## Testing Protected Endpoints
-
-### Get Authenticated User (GET /api/me)
+### Setup
 
 1. **Method**: `GET`
-2. **URL**: `{{base_url}}/me`
+2. **URL**: `{{base_url}}/auth/me`
 3. **Headers**:
-   - `Authorization`: `Bearer {{token}}`
-   - `Accept`: `application/json`
+   ```
+   Authorization: Bearer {{access_token}}
+   Accept: application/json
+   ```
 
-### Expected Response (Success - 200)
+### Expected Response
 
+**Success (200):**
 ```json
 {
     "success": true,
     "data": {
         "id": 1,
-        "username": "testuser",
-        "email": "test@example.com",
-        "name": "Test",
-        "family": "User",
+        "username": "user_10865407",
+        "name": "MahdiAli",
+        "family": "Pak",
+        "displayname": "MahdiAli Pak",
+        "email": "user_10865407@eitaa.com",
         "active": true,
-        "approved": false,
-        "level": "user"
+        "approved": true
     }
 }
 ```
 
-### Logout (POST /api/logout)
+**Error (401):**
+```json
+{
+    "success": false,
+    "message": "User not authenticated"
+}
+```
+
+## Request 3: Refresh Access Token
+
+### Setup
 
 1. **Method**: `POST`
-2. **URL**: `{{base_url}}/logout`
+2. **URL**: `{{base_url}}/auth/refresh`
 3. **Headers**:
-   - `Authorization`: `Bearer {{token}}`
-   - `Accept`: `application/json`
+   ```
+   Content-Type: application/json
+   Accept: application/json
+   ```
 
-### Expected Response (Success - 200)
+### Request Body
 
+```json
+{
+    "refresh_token": "{{refresh_token}}"
+}
+```
+
+### Save New Access Token
+
+Go to **Tests** tab:
+
+```javascript
+if (pm.response.code === 200) {
+    var jsonData = pm.response.json();
+    if (jsonData.data && jsonData.data.access_token) {
+        pm.collectionVariables.set("access_token", jsonData.data.access_token);
+        console.log("✅ New access token saved");
+    }
+} else {
+    console.log("❌ Error:", pm.response.json());
+}
+```
+
+### Expected Response
+
+**Success (200):**
+```json
+{
+    "success": true,
+    "message": "Token refreshed successfully",
+    "data": {
+        "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
+        "refresh_token": "same_refresh_token...",
+        "expires_in": 3600,
+        "token_type": "Bearer"
+    }
+}
+```
+
+## Request 4: Logout
+
+### Setup
+
+1. **Method**: `POST`
+2. **URL**: `{{base_url}}/auth/logout`
+3. **Headers**:
+   ```
+   Content-Type: application/json
+   Accept: application/json
+   ```
+
+### Request Body
+
+```json
+{
+    "refresh_token": "{{refresh_token}}"
+}
+```
+
+### Clear Tokens After Logout
+
+Go to **Tests** tab:
+
+```javascript
+if (pm.response.code === 200) {
+    pm.collectionVariables.set("access_token", "");
+    pm.collectionVariables.set("refresh_token", "");
+    console.log("✅ Logged out, tokens cleared");
+} else {
+    console.log("❌ Error:", pm.response.json());
+}
+```
+
+### Expected Response
+
+**Success (200):**
 ```json
 {
     "success": true,
@@ -239,175 +261,14 @@ Add the same test script in the **Tests** tab to save the token automatically.
 }
 ```
 
-### Refresh Token (POST /api/refresh)
-
-1. **Method**: `POST`
-2. **URL**: `{{base_url}}/refresh`
-3. **Headers**:
-   - `Authorization`: `Bearer {{token}}`
-   - `Accept`: `application/json`
-
-### Expected Response (Success - 200)
-
-```json
-{
-    "success": true,
-    "message": "Token refreshed successfully",
-    "data": {
-        "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-        "token_type": "bearer",
-        "expires_in": 3600,
-        "user": {
-            "id": 1,
-            "username": "testuser",
-            "email": "test@example.com"
-        }
-    }
-}
-```
-
----
-
-## Postman Collection Setup (Complete)
-
-### Create Environment Variables
-
-1. Click **Environments** → **+**
-2. Name: "Laravel Local"
-3. Add variables:
-   - `base_url`: `http://localhost:8000/api`
-   - `token`: (leave empty)
-
-### Authorization Setup for Collection
-
-1. Select your collection
-2. Go to **Authorization** tab
-3. Type: **Bearer Token**
-4. Token: `{{token}}`
-5. This will automatically add the token to all requests in the collection
-
----
-
-## Quick Test Flow
-
-### 1. Register New User
-```
-POST {{base_url}}/register
-Body: {
-    "username": "newuser",
-    "email": "newuser@example.com",
-    "password": "password123",
-    "name": "New",
-    "family": "User"
-}
-```
-
-### 2. Login
-```
-POST {{base_url}}/login
-Body: {
-    "username": "newuser",
-    "password": "password123"
-}
-```
-
-### 3. Get User Info
-```
-GET {{base_url}}/me
-Headers: Authorization: Bearer {{token}}
-```
-
-### 4. Refresh Token
-```
-POST {{base_url}}/refresh
-Headers: Authorization: Bearer {{token}}
-```
-
-### 5. Logout
-```
-POST {{base_url}}/logout
-Headers: Authorization: Bearer {{token}}
-```
-
----
-
-## Common Issues & Solutions
-
-### Issue: "Token absent" or "Token invalid"
-
-**Solution**: 
-- Make sure you're sending the token in the Authorization header
-- Format: `Bearer {your_token_here}`
-- Check if token variable is set in Postman
-
-### Issue: "User not authenticated"
-
-**Solution**:
-- Token might be expired (default: 60 minutes)
-- Use `/refresh` endpoint to get a new token
-- Login again to get a fresh token
-
-### Issue: "Invalid credentials"
-
-**Solution**:
-- Check username/email and password are correct
-- Make sure user account is `active` and `approved` in database
-- For testing, you can manually set `approved = true` in database
-
-### Issue: CORS Error
-
-**Solution**: 
-- Make sure CORS is configured in `config/cors.php`
-- Or add CORS middleware to your API routes
-
----
-
-## Testing Tips
-
-1. **Use Postman Pre-request Scripts**: Automatically set variables before requests
-2. **Use Postman Tests**: Automatically save tokens and validate responses
-3. **Use Environments**: Switch between local, staging, and production easily
-4. **Export Collection**: Share your collection with team members
-
----
-
-## Example Postman Test Scripts
-
-### Auto-save Token (for Login/Register)
-```javascript
-if (pm.response.code === 200 || pm.response.code === 201) {
-    var jsonData = pm.response.json();
-    if (jsonData.data && jsonData.data.token) {
-        pm.collectionVariables.set("token", jsonData.data.token);
-        pm.environment.set("token", jsonData.data.token);
-        console.log("✅ Token saved successfully");
-    }
-}
-```
-
-### Validate Response
-```javascript
-pm.test("Status code is 200", function () {
-    pm.response.to.have.status(200);
-});
-
-pm.test("Response has success field", function () {
-    var jsonData = pm.response.json();
-    pm.expect(jsonData).to.have.property('success');
-    pm.expect(jsonData.success).to.be.true;
-});
-```
-
----
-
 ## Complete Postman Collection JSON
 
-You can import this collection directly into Postman:
+Save this as `Madras_Laravel_API.postman_collection.json`:
 
 ```json
 {
     "info": {
-        "name": "Laravel JWT Auth API",
+        "name": "Madras Laravel API",
         "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
@@ -416,84 +277,76 @@ You can import this collection directly into Postman:
             "value": "http://localhost:8000/api"
         },
         {
-            "key": "token",
+            "key": "access_token",
+            "value": ""
+        },
+        {
+            "key": "refresh_token",
             "value": ""
         }
     ],
     "item": [
         {
-            "name": "Register",
+            "name": "ETA Login",
             "request": {
                 "method": "POST",
                 "header": [
                     {
                         "key": "Content-Type",
                         "value": "application/json"
-                    }
-                ],
-                "body": {
-                    "mode": "raw",
-                    "raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"password123\",\n    \"name\": \"Test\",\n    \"family\": \"User\"\n}"
-                },
-                "url": {
-                    "raw": "{{base_url}}/register",
-                    "host": ["{{base_url}}"],
-                    "path": ["register"]
-                }
-            }
-        },
-        {
-            "name": "Login",
-            "request": {
-                "method": "POST",
-                "header": [
+                    },
                     {
-                        "key": "Content-Type",
+                        "key": "Accept",
                         "value": "application/json"
                     }
                 ],
                 "body": {
                     "mode": "raw",
-                    "raw": "{\n    \"username\": \"testuser\",\n    \"password\": \"password123\"\n}"
+                    "raw": "{\n    \"eitaa_data\": \"auth_date=1760874684&device_id=0261d09fc99223b94b07ded42c2f340b&query_id=2721441469101642&user={\\\"id\\\":10865407,\\\"first_name\\\":\\\"MahdiAli\\\",\\\"last_name\\\":\\\"Pak\\\",\\\"language_code\\\":\\\"en\\\",\\\"allows_write_to_pm\\\":true}&hash=cddf185431e041c88eedf8a9bc4e3e7f6f8e2c798fde294018e4b1a5ec9a0f47\",\n    \"utm\": \"source=postman&medium=api&campaign=test\"\n}"
                 },
                 "url": {
-                    "raw": "{{base_url}}/login",
+                    "raw": "{{base_url}}/auth/eta-login",
                     "host": ["{{base_url}}"],
-                    "path": ["login"]
+                    "path": ["auth", "eta-login"]
                 }
-            }
+            },
+            "event": [
+                {
+                    "listen": "test",
+                    "script": {
+                        "exec": [
+                            "if (pm.response.code === 200 || pm.response.code === 201) {",
+                            "    var jsonData = pm.response.json();",
+                            "    if (jsonData.access_token) {",
+                            "        pm.collectionVariables.set(\"access_token\", jsonData.access_token);",
+                            "    }",
+                            "    if (jsonData.refresh_token) {",
+                            "        pm.collectionVariables.set(\"refresh_token\", jsonData.refresh_token);",
+                            "    }",
+                            "}"
+                        ]
+                    }
+                }
+            ]
         },
         {
-            "name": "Get Me",
+            "name": "Get Authenticated User",
             "request": {
                 "method": "GET",
                 "header": [
                     {
                         "key": "Authorization",
-                        "value": "Bearer {{token}}"
-                    }
-                ],
-                "url": {
-                    "raw": "{{base_url}}/me",
-                    "host": ["{{base_url}}"],
-                    "path": ["me"]
-                }
-            }
-        },
-        {
-            "name": "Logout",
-            "request": {
-                "method": "POST",
-                "header": [
+                        "value": "Bearer {{access_token}}"
+                    },
                     {
-                        "key": "Authorization",
-                        "value": "Bearer {{token}}"
+                        "key": "Accept",
+                        "value": "application/json"
                     }
                 ],
                 "url": {
-                    "raw": "{{base_url}}/logout",
+                    "raw": "{{base_url}}/auth/me",
                     "host": ["{{base_url}}"],
-                    "path": ["logout"]
+                    "path": ["auth", "me"]
                 }
             }
         },
@@ -503,14 +356,39 @@ You can import this collection directly into Postman:
                 "method": "POST",
                 "header": [
                     {
-                        "key": "Authorization",
-                        "value": "Bearer {{token}}"
+                        "key": "Content-Type",
+                        "value": "application/json"
                     }
                 ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+                },
                 "url": {
-                    "raw": "{{base_url}}/refresh",
+                    "raw": "{{base_url}}/auth/refresh",
                     "host": ["{{base_url}}"],
-                    "path": ["refresh"]
+                    "path": ["auth", "refresh"]
+                }
+            }
+        },
+        {
+            "name": "Logout",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    }
+                ],
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n    \"refresh_token\": \"{{refresh_token}}\"\n}"
+                },
+                "url": {
+                    "raw": "{{base_url}}/auth/logout",
+                    "host": ["{{base_url}}"],
+                    "path": ["auth", "logout"]
                 }
             }
         }
@@ -518,16 +396,106 @@ You can import this collection directly into Postman:
 }
 ```
 
-Save this as a `.json` file and import it into Postman!
+## Step-by-Step Testing Workflow
 
----
+### 1. First Time Setup
 
-## Next Steps
+1. Import the collection JSON above (or create manually)
+2. Set `base_url` variable to your Laravel API URL
+3. Make sure your Laravel server is running
 
-1. Test all endpoints in the order shown above
-2. Verify token expiration works correctly
-3. Test error scenarios (invalid credentials, expired tokens, etc.)
-4. Integrate with your frontend application
+### 2. Test ETA Login
+
+1. Open **ETA Login** request
+2. **Important**: Replace `eitaa_data` with real ETA init data from your bot
+3. Click **Send**
+4. Check **Console** (bottom of Postman) for token save confirmation
+5. Verify response contains `access_token` and `refresh_token`
+
+### 3. Test Authenticated Endpoint
+
+1. Open **Get Authenticated User** request
+2. The `{{access_token}}` variable should be automatically filled
+3. Click **Send**
+4. Should return user data
+
+### 4. Test Token Refresh
+
+1. Wait for access token to expire (or manually test)
+2. Open **Refresh Token** request
+3. Click **Send**
+4. New access token should be saved automatically
+
+### 5. Test Logout
+
+1. Open **Logout** request
+2. Click **Send**
+3. Tokens should be cleared from variables
+
+## Troubleshooting
+
+### Error: "دیتا معتبر نمی باشد!" (Invalid data)
+
+**Causes:**
+- Hash doesn't match (wrong token or corrupted data)
+- Missing required fields in `eitaa_data`
+- Incorrect format
+
+**Solution:**
+- Verify `EITAA_TOKEN` in `.env` matches your bot token
+- Ensure `eitaa_data` is a valid URL-encoded query string
+- Check that `hash` field is present and correct
+
+### Error: "User not authenticated"
+
+**Causes:**
+- Access token expired
+- Invalid token
+- Token not sent in Authorization header
+
+**Solution:**
+- Refresh the token using **Refresh Token** request
+- Check Authorization header format: `Bearer {{access_token}}`
+- Verify token was saved correctly
+
+### Error: "Invalid refresh token"
+
+**Causes:**
+- Refresh token expired
+- Token already revoked
+- Wrong token format
+
+**Solution:**
+- Login again to get new tokens
+- Check refresh token in collection variables
+- Verify token wasn't revoked
+
+## Tips
+
+1. **Use Environment Variables**: Create different environments for dev/staging/prod
+2. **Save Responses**: Use Postman's "Save Response" feature for debugging
+3. **Use Console**: Check Postman console for detailed logs
+4. **Test Scripts**: Add test scripts to validate responses automatically
+5. **Collection Runner**: Use collection runner to test all endpoints in sequence
+
+## Quick Test Checklist
+
+- [ ] Collection created with variables
+- [ ] Base URL set correctly
+- [ ] ETA Login request works
+- [ ] Tokens saved automatically
+- [ ] Get User (me) works with token
+- [ ] Refresh token works
+- [ ] Logout works and clears tokens
+
+## Example: Real ETA Data Format
+
+When testing, you'll receive actual ETA init data from your bot. It will look like:
+
+```
+auth_date=1760874684&device_id=0261d09fc99223b94b07ded42c2f340b&query_id=2721441469101642&user={"id":10865407,"first_name":"MahdiAli","last_name":"Pak","language_code":"en","allows_write_to_pm":true}&hash=cddf185431e041c88eedf8a9bc4e3e7f6f8e2c798fde294018e4b1a5ec9a0f47
+```
+
+Just paste this entire string as the value of `eitaa_data` in your request body.
 
 Happy Testing! 🚀
-

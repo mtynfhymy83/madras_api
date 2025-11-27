@@ -12,6 +12,13 @@ class Online extends Model
 
     protected $table = 'ci_onlines';
 
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
     protected $fillable = [
         'user_id',
         'date',
@@ -29,4 +36,6 @@ class Online extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 }
+
+
 

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('jwt_tokens', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('ci_users')->onDelete('cascade');
             $table->string('refresh_token', 255)->unique();
             $table->string('mini_app_uuid');
             $table->json('roles')->nullable();

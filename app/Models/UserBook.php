@@ -12,6 +12,13 @@ class UserBook extends Model
 
     protected $table = 'ci_user_books';
 
+    /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
     protected $fillable = [
         'user_id',
         'book_id',
@@ -33,4 +40,6 @@ class UserBook extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 }
+
+
 

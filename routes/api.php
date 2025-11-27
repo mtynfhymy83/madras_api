@@ -15,13 +15,19 @@ use App\Http\Controllers\AuthController;
 */
 
 // Public routes
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/auth/eta-login', [AuthController::class, 'etaLogin']);
+Route::post('/auth/refresh', [AuthController::class, 'refresh']);
+Route::post('/auth/logout', [AuthController::class, 'logout']);
+
+// Debug routes (only in debug mode)
+if (config('app.debug')) {
+    Route::get('/auth/generate-test-data', [AuthController::class, 'generateTestData']);
+    Route::post('/auth/test-validation', [AuthController::class, 'testEtaValidation']);
+}
 
 // Protected routes (require JWT authentication)
 Route::middleware('jwt.auth')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
-    Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/auth/me', [AuthController::class, 'me']);
 });
+
 

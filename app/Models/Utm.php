@@ -6,32 +6,27 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class UserMembership extends Model
+class Utm extends Model
 {
     use HasFactory;
 
-    protected $table = 'ci_user_membership';
+    protected $table = 'utm';
 
-    /**
-     * Indicates if the model should be timestamped.
-     *
-     * @var bool
-     */
     public $timestamps = false;
 
     protected $fillable = [
         'user_id',
-        'factor_id',
-        'membership_id',
-        'startdate',
-        'enddate',
+        'eitaa_id',
+        'is_registered',
+        'utm',
+        'created_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'startdate' => 'date',
-            'enddate' => 'date',
+            'is_registered' => 'boolean',
+            'created_at' => 'datetime',
         ];
     }
 
@@ -40,6 +35,5 @@ class UserMembership extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 }
-
 
 

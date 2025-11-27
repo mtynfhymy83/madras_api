@@ -18,11 +18,19 @@ class User extends Authenticatable implements JWTSubject
     protected $table = 'ci_users';
 
     /**
+     * Indicates if the model should be timestamped.
+     *
+     * @var bool
+     */
+    public $timestamps = false;
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var array<int, string>
      */
     protected $fillable = [
+        'eitaa_id',
         'username',
         'name',
         'family',
@@ -196,7 +204,14 @@ class User extends Authenticatable implements JWTSubject
         return !empty($this->level) && $this->level !== 'user';
     }
 
-    public function can(string $permission, ?int $userId = null): bool
+    /**
+     * Check if user has a specific permission
+     * 
+     * @param string $permission Permission key (without underscore prefix)
+     * @param int|null $userId Optional user ID to check permissions for
+     * @return bool
+     */
+    public function hasPermission(string $permission, ?int $userId = null): bool
     {
         if (!$this->active) {
             return false;
@@ -241,7 +256,7 @@ class User extends Authenticatable implements JWTSubject
         }
 
         if ($access) {
-            return $this->can($access);
+            return $this->hasPermission($access);
         }
 
         return true;
