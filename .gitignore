@@ -1,6 +1,5 @@
 vendor
 sql
-composer.lock
 .env
 k6/summary.json
 k6/summary.html
