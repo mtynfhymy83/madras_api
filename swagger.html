@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Madras API Documentation - Swagger UI</title>
+    <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui.css" />
+    <style>
+        html {
+            box-sizing: border-box;
+            overflow: -moz-scrollbars-vertical;
+            overflow-y: scroll;
+        }
+        *, *:before, *:after {
+            box-sizing: inherit;
+        }
+        body {
+            margin: 0;
+            background: #fafafa;
+        }
+        .swagger-ui .topbar {
+            background-color: #1f2937;
+        }
+        .swagger-ui .topbar .download-url-wrapper {
+            display: none;
+        }
+        .swagger-ui .info .title {
+            color: #1f2937;
+            font-size: 36px;
+        }
+        .swagger-ui .scheme-container {
+            background: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-bundle.js"></script>
+    <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            // تعیین URL فایل swagger.yaml بر اساس محیط
+            const swaggerUrl = window.location.origin + '/api/v1/docs/swagger.yaml';
+            
+            const ui = SwaggerUIBundle({
+                url: swaggerUrl,
+                dom_id: '#swagger-ui',
+                deepLinking: true,
+                presets: [
+                    SwaggerUIBundle.presets.apis,
+                    SwaggerUIStandalonePreset
+                ],
+                plugins: [
+                    SwaggerUIBundle.plugins.DownloadUrl
+                ],
+                layout: "StandaloneLayout",
+                validatorUrl: null,
+                docExpansion: "list",
+                filter: true,
+                tryItOutEnabled: true,
+                supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+                requestInterceptor: function(request) {
+                    // اضافه کردن headers برای CORS
+                    if (!request.headers) {
+                        request.headers = {};
+                    }
+                    request.headers['Content-Type'] = request.headers['Content-Type'] || 'application/json';
+                    return request;
+                },
+                responseInterceptor: function(response) {
+                    // لاگ کردن response برای debugging
+                    if (response.status >= 400) {
+                        console.error('API Error:', response);
+                    }
+                    return response;
+                },
+                onComplete: function() {
+                    console.log("Swagger UI loaded successfully");
+                },
+                onFailure: function(data) {
+                    console.error("Failed to load Swagger UI:", data);
+                    // Fallback: نمایش خطا
+                    document.getElementById('swagger-ui').innerHTML = 
+                        '<div style="padding: 20px; text-align: center;">' +
+                        '<h2>خطا در بارگذاری مستندات</h2>' +
+                        '<p>لطفاً مطمئن شوید که فایل swagger.yaml در مسیر /docs/swagger.yaml موجود است.</p>' +
+                        '<p>URL مورد استفاده: ' + swaggerUrl + '</p>' +
+                        '</div>';
+                }
+            });
+        };
+    </script>
+</body>
+</html>
+

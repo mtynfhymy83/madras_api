@@ -1,0 +1,9 @@
+vendor
+sql
+composer.lock
+.env
+k6/summary.json
+k6/summary.html
+storage/logs/app_error.log
+/storage/logs/swoole.log
+

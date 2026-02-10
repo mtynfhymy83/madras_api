@@ -1,0 +1,54 @@
+
+
+services:
+  # سرویس اپلیکیشن (کدهای جدید PHP Swoole ما)
+  app:
+    build: .
+    container_name: php_swoole_app_new
+    restart: unless-stopped
+    ports:
+      - "9501:9501"
+    volumes:
+      - .:/var/www/html # کدها را سینک می‌کند
+    depends_on:
+      - postgres
+    environment:
+      # اتصال به دیتابیس madras
+      DB_TYPE: pgsql
+      DB_HOST: postgres      # نام سرویس دیتابیس
+      DB_PORT: 5432
+      DB_NAME: madras        # ✅ دیتابیس madras
+      DB_USERNAME: myuser  # ✅ یوزر postgres
+      DB_PASSWORD: mypass # ✅ پسورد postgres
+
+      # تنظیمات امنیتی اپلیکیشن
+      JWT_SECRET: kvpFWQDecn
+      JWT_ALGO: HS256
+      CACHE_ENABLED: "false"
+      
+      # Database pool configuration
+      # توجه: کل اتصالات = SWOOLE_WORKER_NUM × DB_POOL_SIZE
+      # PostgreSQL در این docker-compose با max_connections=200 تنظیم شده
+      DB_POOL_SIZE: "30"
+      SWOOLE_WORKER_NUM: "4"
+
+  # سرویس دیتابیس (همان دیتابیس قدیمی شما)
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: madras
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypass
+    command: postgres -c max_connections=200 -c shared_buffers=256MB
+    volumes:
+      # والیوم قدیمی شما (اطلاعات اینجا محفوظ است)
+      - pgdata:/var/lib/postgresql/data
+      # اگر اسکریپت ساخت جداول (init.sql) دارید اینجا بگذارید تا اگر دیتابیس خالی بود اجرا شود
+      - ./sql:/docker-entrypoint-initdb.d
+
+volumes:
+  pgdata:

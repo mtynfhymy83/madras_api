@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تبدیل تصویر به Base64 - برای Swagger</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Tahoma', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            background: #f8f9ff;
+        }
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+        .upload-icon {
+            font-size: 60px;
+            margin-bottom: 20px;
+        }
+        .upload-text {
+            font-size: 18px;
+            color: #667eea;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .upload-hint {
+            font-size: 14px;
+            color: #999;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .preview-area {
+            display: none;
+            margin-top: 30px;
+        }
+        .preview-area.active {
+            display: block;
+        }
+        .preview-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        .preview-image {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .info-box {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .info-box strong {
+            color: #667eea;
+        }
+        .output-area {
+            margin-top: 20px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 15px;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        button {
+            flex: 1;
+            min-width: 150px;
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .btn-copy {
+            background: #667eea;
+            color: white;
+        }
+        .btn-copy:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        .btn-reset {
+            background: #f0f0f0;
+            color: #666;
+        }
+        .btn-reset:hover {
+            background: #e0e0e0;
+        }
+        .btn-swagger {
+            background: #85ea2d;
+            color: white;
+        }
+        .btn-swagger:hover {
+            background: #73d126;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(133, 234, 45, 0.4);
+        }
+        .success-message {
+            background: #4caf50;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        .success-message.show {
+            display: block;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .instructions {
+            background: #fff3cd;
+            border-right: 4px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+        .instructions h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+        .instructions ol {
+            margin-right: 20px;
+        }
+        .instructions li {
+            margin-bottom: 10px;
+            color: #856404;
+            line-height: 1.6;
+        }
+        .instructions code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #d63384;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖼️ تبدیل تصویر به Base64</h1>
+        <p class="subtitle">برای استفاده در Swagger API</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">کلیک کنید یا فایل را اینجا بکشید</div>
+            <div class="upload-hint">JPG, PNG, GIF, WEBP (حداکثر 5MB)</div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="preview-area" id="previewArea">
+            <div class="preview-title">👁️ پیش‌نمایش تصویر:</div>
+            <img id="previewImage" class="preview-image" alt="Preview">
+            
+            <div class="info-box">
+                <strong>نام فایل:</strong> <span id="fileName"></span><br>
+                <strong>نوع:</strong> <span id="fileType"></span><br>
+                <strong>حجم:</strong> <span id="fileSize"></span><br>
+                <strong>ابعاد:</strong> <span id="fileDimensions"></span><br>
+                <strong>حجم Base64:</strong> <span id="base64Size"></span>
+            </div>
+
+            <div class="output-area">
+                <div class="preview-title">📋 کد Base64 (برای کپی در Swagger):</div>
+                <textarea id="base64Output" readonly></textarea>
+                
+                <div class="button-group">
+                    <button class="btn-copy" onclick="copyToClipboard()">
+                        📋 کپی کردن
+                    </button>
+                    <button class="btn-swagger" onclick="openSwagger()">
+                        🚀 باز کردن Swagger
+                    </button>
+                    <button class="btn-reset" onclick="resetForm()">
+                        🔄 تصویر جدید
+                    </button>
+                </div>
+                
+                <div class="success-message" id="successMessage">
+                    ✅ با موفقیت کپی شد! حالا در Swagger در فیلد vertical_image paste کنید.
+                </div>
+            </div>
+        </div>
+
+        <div class="instructions">
+            <h3>📖 راهنمای استفاده:</h3>
+            <ol>
+                <li>تصویر عمودی کتاب را انتخاب کنید (ابعاد پیشنهادی: 600×800 پیکسل)</li>
+                <li>کد Base64 به‌صورت خودکار تولید می‌شود</li>
+                <li>روی دکمه "کپی کردن" کلیک کنید</li>
+                <li>روی دکمه "باز کردن Swagger" کلیک کنید یا مستقیماً به <code>/v1/swagger.html</code> بروید</li>
+                <li>endpoint <code>POST /api/v1/admin/books/create</code> را باز کنید</li>
+                <li>روی "Try it out" کلیک کنید</li>
+                <li>کد کپی شده را در فیلد <code>vertical_image</code> paste کنید</li>
+                <li>دکمه "Execute" را بزنید</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewArea = document.getElementById('previewArea');
+        const previewImage = document.getElementById('previewImage');
+        const base64Output = document.getElementById('base64Output');
+        const successMessage = document.getElementById('successMessage');
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            // Validate file type
+            if (!file.type.startsWith('image/')) {
+                alert('لطفاً فقط فایل تصویری انتخاب کنید!');
+                return;
+            }
+
+            // Validate file size (5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('حجم فایل نباید بیشتر از 5MB باشد!');
+                return;
+            }
+
+            // Show file info
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileType').textContent = file.type;
+            document.getElementById('fileSize').textContent = formatBytes(file.size);
+
+            // Read file
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const base64String = e.target.result;
+                
+                // Show preview
+                previewImage.src = base64String;
+                previewArea.classList.add('active');
+                base64Output.value = base64String;
+                
+                // Get image dimensions
+                const img = new Image();
+                img.onload = function() {
+                    document.getElementById('fileDimensions').textContent = 
+                        `${this.width} × ${this.height} پیکسل`;
+                };
+                img.src = base64String;
+                
+                // Show base64 size
+                document.getElementById('base64Size').textContent = 
+                    formatBytes(base64String.length);
+                
+                // Scroll to preview
+                previewArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        function copyToClipboard() {
+            base64Output.select();
+            document.execCommand('copy');
+            
+            // Show success message
+            successMessage.classList.add('show');
+            setTimeout(() => {
+                successMessage.classList.remove('show');
+            }, 3000);
+        }
+
+        function openSwagger() {
+            // Try to detect the current host
+            const host = window.location.origin;
+            window.open(host + '/v1/swagger.html', '_blank');
+        }
+
+        function resetForm() {
+            fileInput.value = '';
+            previewArea.classList.remove('active');
+            base64Output.value = '';
+            successMessage.classList.remove('show');
+        }
+    </script>
+</body>
+</html>

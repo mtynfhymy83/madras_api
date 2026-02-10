@@ -1,0 +1,2836 @@
+openapi: 3.0.3
+info:
+  title: Madras API
+  version: '1.0'
+  description: |
+    Swagger definition for the `/v1/auth/eitaa` endpoint that allows clients to authenticate
+    via the Eitaa messenger payload.
+servers:
+  - url: https://api-dev.madras.app
+    description: Production server (Namavaran)
+  - url: http://localhost:9501
+    description: Local Swoole server (Docker Desktop)
+  - url: http://localhost/Madras_Api
+    description: Local Apache/Nginx server
+paths:
+  /v1/auth/eitaa:
+    post:
+      tags:
+        - Authentication
+      summary: Login with Eitaa
+      description: |
+        Accepts the raw payload that the Eitaa web app sends after a user approves the
+        login request. The payload is verified and mapped to an internal user. If the
+        user does not exist, a profile is created automatically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - eitaa_data
+              properties:
+                eitaa_data:
+                  type: string
+                  description: Raw query-string style payload returned by the Eitaa WebApp.
+            examples:
+              default:
+                value:
+                  eitaa_data: "auth_date=1764589746&device_id=1e487b3c6f58f618af44250f2cefeab3&query_id=6437797987992600&user={\"id\":13098362,\"first_name\":\"Matin\",\"last_name\":\"\",\"language_code\":\"en\",\"allows_write_to_pm\":true}&hash=df7a002361a01b088b2c417eeff6f401dee3b10462b2067988177e909c37fd6e"
+      responses:
+        '200':
+          description: Success
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Admin Panel
+      summary: Admin Login
+      description: |
+        Authenticate admin users with username and password to access the admin panel.
+        Only users with role='admin' can login through this endpoint.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                  description: Admin username
+                password:
+                  type: string
+                  description: Admin password
+            examples:
+              default:
+                value:
+                  username: "balvardi"
+                  password: "123456"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      token:
+                        type: string
+                      user:
+                        type: object
+                        properties:
+                          role:
+                            type: string
+                            example: "admin"
+        '401':
+          description: Invalid credentials
+        '403':
+          description: User is not admin
+
+  /api/v1/admin/users/list:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get Users List
+      description: |
+        Retrieve paginated list of users with filtering and sorting options.
+        Requires admin authentication token.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: sort
+          in: query
+          description: Sort field
+          required: false
+          schema:
+            type: string
+            default: id
+        - name: order
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: DESC
+        - name: username
+          in: query
+          description: Filter by username
+          required: false
+          schema:
+            type: string
+        - name: email
+          in: query
+          description: Filter by email
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                      meta:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          current_page:
+                            type: integer
+                          last_page:
+                            type: integer
+        '401':
+          description: Unauthorized
+
+  /api/v1/admin/dashboard/stats:
+    get:
+      tags:
+        - Admin Panel
+      summary: Dashboard Stats
+      description: |
+        آمار کلی داشبورد شامل تعداد کل کاربران، تعداد کل کتاب‌ها
+        و مجموع فروش ماه مشخص.
+        Requires admin authentication token.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: month
+          in: query
+          description: ماه مورد نظر (1 تا 12). اگر ارسال نشود، ماه جاری استفاده می‌شود.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+        - name: year
+          in: query
+          description: سال مورد نظر (مثلاً 2026). اگر ارسال نشود، سال جاری استفاده می‌شود.
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      total_users:
+                        type: integer
+                      total_books:
+                        type: integer
+                      sales_month:
+                        type: object
+                        properties:
+                          year:
+                            type: integer
+                          month:
+                            type: integer
+                          from:
+                            type: integer
+                            description: Unix timestamp (start of month)
+                          to:
+                            type: integer
+                            description: Unix timestamp (end of month)
+                          total_paid:
+                            type: integer
+        '401':
+          description: Unauthorized
+
+  /api/v1/admin/books/list:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get Books List
+      description: |
+        Retrieve paginated list of books/products with filtering and sorting options.
+        Includes category information via JOIN. Requires admin authentication token.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          description: Search in book titles
+          required: false
+          schema:
+            type: string
+        - name: category_id
+          in: query
+          description: Filter by category ID
+          required: false
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          description: Sort field
+          required: false
+          schema:
+            type: string
+            default: id
+            enum: [id, title, price, created_at]
+        - name: order
+          in: query
+          description: Sort order
+          required: false
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: DESC
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                            title:
+                              type: string
+                            price:
+                              type: integer
+                            author:
+                              type: string
+                            image:
+                              type: string
+                            category:
+                              type: object
+                              properties:
+                                id:
+                                  type: integer
+                                title:
+                                  type: string
+                            created_at:
+                              type: string
+                            in_stock:
+                              type: boolean
+                      pagination:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          per_page:
+                            type: integer
+                          current_page:
+                            type: integer
+                          last_page:
+                            type: integer
+                          from:
+                            type: integer
+                          to:
+                            type: integer
+        '401':
+          description: Unauthorized
+
+  /api/v1/admin/books/create:
+    post:
+      tags:
+        - Admin Panel
+      summary: Create Book
+      description: |
+        Create a new book/product in the system. Supports file uploads (images, PDFs),
+        author assignment, category selection, and various metadata fields.
+        Requires admin authentication token.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  description: Book title
+                  example: "کتاب نمونه"
+                author_id:
+                  type: integer
+                  description: Author person ID from persons table
+                  example: 1
+                priority:
+                  type: string
+                  description: Priority level
+                  enum: [normal, high, عادی, بالا]
+                  default: normal
+                abstract:
+                  type: string
+                  description: Book abstract/summary
+                  example: "این یک کتاب نمونه است"
+                category_ids:
+                  type: array
+                  description: Array of category IDs
+                  items:
+                    type: integer
+                  example: [1, 2]
+                price:
+                  type: integer
+                  description: Price in Toman (0 means free)
+                  default: 0
+                  example: 25000
+                start_page_number:
+                  type: integer
+                  description: Starting page number of the book
+                  example: 1
+                vertical_image:
+                  type: string
+                  description: Base64 encoded vertical cover image
+                  format: base64
+                  example: "data:image/png;base64,iVBORw0KGgoAAAANS..."
+                horizontal_image:
+                  type: string
+                  description: Base64 encoded horizontal cover image
+                  format: base64
+                  example: "data:image/png;base64,iVBORw0KGgoAAAANS..."
+                sample_questions_file:
+                  type: string
+                  description: Base64 encoded sample questions file (PDF)
+                  format: base64
+                  example: "data:application/pdf;base64,JVBERi0xLjQK..."
+                attached_files:
+                  type: array
+                  description: Array of attached file names/paths
+                  items:
+                    type: string
+                  example: ["file1.pdf", "file2.pdf"]
+                status:
+                  type: string
+                  description: Publication status
+                  enum: [publish, draft, ready, انتشار, پیش_نویس, آماده_انتشار]
+                  default: draft
+                publisher_id:
+                  type: integer
+                  description: Publisher ID
+                  example: 1
+                description:
+                  type: string
+                  description: Full book description
+                  example: "توضیحات کامل کتاب"
+                created_at:
+                  type: string
+                  format: date-time
+                  description: Creation date (optional, defaults to now)
+                  example: "2026-01-29 13:35:00"
+                updated_at:
+                  type: string
+                  format: date-time
+                  description: Update date (optional, defaults to now)
+                  example: "2026-01-29 13:35:00"
+            examples:
+              minimal:
+                summary: Minimal request (only required fields)
+                value:
+                  title: "کتاب جدید"
+                  status: "draft"
+              full:
+                summary: Full request with all fields
+                value:
+                  title: "کتاب نمونه"
+                  author_id: 1
+                  priority: "بالا"
+                  abstract: "این یک کتاب نمونه است که شامل مطالب آموزشی می‌باشد"
+                  category_ids: [1, 2, 3]
+                  price: 25000
+                  start_page_number: 1
+                  vertical_image: "data:image/png;base64,iVBORw0KGgoAAAANS..."
+                  horizontal_image: "data:image/png;base64,iVBORw0KGgoAAAANS..."
+                  sample_questions_file: "data:application/pdf;base64,JVBERi0xLjQK..."
+                  attached_files: ["file1.pdf", "file2.pdf"]
+                  status: "انتشار"
+                  publisher_id: 1
+                  description: "توضیحات کامل کتاب که شامل اطلاعات بیشتری است"
+                  created_at: "2026-01-29 13:35:00"
+                  updated_at: "2026-01-29 13:35:00"
+      responses:
+        '200':
+          description: Book created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 123
+                      title:
+                        type: string
+                        example: "کتاب نمونه"
+                      slug:
+                        type: string
+                        example: "ketab-namune"
+                      status:
+                        type: integer
+                        example: 1
+                  message:
+                    type: string
+                    example: "کتاب با موفقیت ایجاد شد"
+                  error:
+                    type: boolean
+                    example: false
+                  status:
+                    type: integer
+                    example: 200
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Validation failed"
+                  error:
+                    type: boolean
+                    example: true
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Unauthorized"
+                  error:
+                    type: boolean
+                    example: true
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "خطا در ایجاد کتاب"
+                  error:
+                    type: boolean
+                    example: true
+                  status:
+                    type: integer
+                    example: 500
+
+  /api/v1/admin/publishers/list:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get list of publishers
+      description: Retrieve a paginated list of publishers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+          description: Items per page
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by publisher title
+      responses:
+        '200':
+          description: List of publishers retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              example: 1
+                            title:
+                              type: string
+                              example: "انتشارات نمونه"
+                            slug:
+                              type: string
+                              example: "entesharat-namune"
+                            logo:
+                              type: string
+                              nullable: true
+                              example: null
+                            description:
+                              type: string
+                              nullable: true
+                              example: null
+                            website:
+                              type: string
+                              nullable: true
+                              example: null
+                            created_at:
+                              type: string
+                              example: "2026-01-29 13:35:00"
+                      pagination:
+                        type: object
+                        properties:
+                          page:
+                            type: integer
+                            example: 1
+                          limit:
+                            type: integer
+                            example: 20
+                          total:
+                            type: integer
+                            example: 10
+                          pages:
+                            type: integer
+                            example: 1
+                  message:
+                    type: string
+                    example: "لیست ناشران با موفقیت دریافت شد"
+                  error:
+                    type: boolean
+                    example: false
+                  status:
+                    type: integer
+                    example: 200
+
+  /api/v1/admin/publishers/create:
+    post:
+      tags:
+        - Admin Panel
+      summary: Create a new publisher
+      description: Create a new publisher with title and optional fields
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  description: Publisher name
+                  minLength: 2
+                  maxLength: 255
+                  example: "انتشارات نمونه"
+                slug:
+                  type: string
+                  description: URL-friendly slug (auto-generated if not provided)
+                  maxLength: 255
+                  example: "entesharat-namune"
+                logo:
+                  type: string
+                  description: Logo URL or path
+                  maxLength: 500
+                  example: null
+                description:
+                  type: string
+                  description: Publisher description
+                  example: "توضیحات ناشر"
+                website:
+                  type: string
+                  description: Publisher website URL
+                  maxLength: 500
+                  example: "https://example.com"
+            examples:
+              minimal:
+                summary: Minimal request (only title)
+                value:
+                  title: "انتشارات جدید"
+              full:
+                summary: Full request with all fields
+                value:
+                  title: "انتشارات نمونه"
+                  slug: "entesharat-namune"
+                  logo: "https://example.com/logo.png"
+                  description: "این یک ناشر نمونه است"
+                  website: "https://example.com"
+      responses:
+        '200':
+          description: Publisher created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      title:
+                        type: string
+                        example: "انتشارات نمونه"
+                      slug:
+                        type: string
+                        example: "entesharat-namune"
+                      logo:
+                        type: string
+                        nullable: true
+                        example: null
+                      description:
+                        type: string
+                        nullable: true
+                        example: null
+                      website:
+                        type: string
+                        nullable: true
+                        example: null
+                      created_at:
+                        type: string
+                        example: "2026-01-29 13:35:00"
+                  message:
+                    type: string
+                    example: "ناشر با موفقیت ایجاد شد"
+                  error:
+                    type: boolean
+                    example: false
+                  status:
+                    type: integer
+                    example: 200
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "Validation failed"
+                  error:
+                    type: boolean
+                    example: true
+        '401':
+          description: Unauthorized
+
+  /api/v1/admin/categories/create:
+    post:
+      tags:
+        - Admin Panel
+      summary: Create Category
+      description: |
+        ایجاد دسته‌بندی جدید برای محصولات. اگر parent_id ارسال شود،
+        دسته‌بندی به عنوان زیرمجموعه ثبت می‌شود.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  description: عنوان دسته‌بندی
+                  example: "ریاضی"
+                slug:
+                  type: string
+                  description: اسلاگ (اختیاری)
+                  example: "riazi"
+                parent_id:
+                  type: integer
+                  description: شناسه دسته‌بندی والد (اختیاری)
+                  example: 12
+                icon:
+                  type: string
+                  description: مسیر آیکون (اختیاری)
+                  example: "/storage/icons/math.svg"
+                type:
+                  type: string
+                  description: نوع دسته‌بندی
+                  example: "book"
+                is_active:
+                  type: boolean
+                  description: فعال/غیرفعال
+                  example: true
+                sort_order:
+                  type: integer
+                  description: ترتیب نمایش
+                  example: 0
+      responses:
+        '200':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      title:
+                        type: string
+                      slug:
+                        type: string
+                      parent_id:
+                        type: integer
+                        nullable: true
+                      icon:
+                        type: string
+                        nullable: true
+                      type:
+                        type: string
+                      is_active:
+                        type: boolean
+                      sort_order:
+                        type: integer
+                      depth:
+                        type: integer
+                      full_path:
+                        type: string
+                        nullable: true
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /api/v1/admin/categories/list:
+    get:
+      tags:
+        - Admin Panel
+      summary: List Categories
+      description: |
+        دریافت لیست دسته‌بندی‌ها با امکان فیلتر و جستجو.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: جستجو در عنوان دسته‌بندی
+        - name: parent_id
+          in: query
+          schema:
+            type: integer
+          description: فیلتر بر اساس والد
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: نوع دسته‌بندی (book, ...)
+        - name: is_active
+          in: query
+          schema:
+            type: integer
+            enum: [0, 1]
+          description: فقط دسته‌بندی‌های فعال/غیرفعال
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Unauthorized
+
+  /api/v1/admin/categories/{id}:
+    put:
+      tags:
+        - Admin Panel
+      summary: Update Category
+      description: ویرایش دسته‌بندی
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                slug:
+                  type: string
+                parent_id:
+                  type: integer
+                  nullable: true
+                icon:
+                  type: string
+                type:
+                  type: string
+                is_active:
+                  type: integer
+                  enum: [0, 1]
+                sort_order:
+                  type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Validation error
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+
+    delete:
+      tags:
+        - Admin Panel
+      summary: Delete Category
+      description: حذف دسته‌بندی (در صورت نداشتن زیردسته)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Success
+        '400':
+          description: Has children
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not found
+
+  /api/v1/admin/payments/list:
+    get:
+      tags:
+        - Admin Panel
+      summary: List Payments (Transactions)
+      description: |
+        لیست تراکنش‌ها برای صفحه پرداخت‌های پنل ادمین.
+        فیلترها براساس ستون‌های جدول transactions و اطلاعات کاربر.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: id
+          in: query
+          schema:
+            type: integer
+          description: شماره فاکتور (شناسه تراکنش)
+        - name: ref_id
+          in: query
+          schema:
+            type: string
+          description: شماره رسید
+        - name: status
+          in: query
+          schema:
+            type: integer
+          description: وضعیت تراکنش (مثلاً 0 پرداخت موفق)
+        - name: price
+          in: query
+          schema:
+            type: integer
+          description: مبلغ فاکتور
+        - name: section
+          in: query
+          schema:
+            type: string
+          description: بخش تراکنش (book, ...)
+        - name: username
+          in: query
+          schema:
+            type: string
+          description: جستجو بر اساس نام کاربری
+        - name: email
+          in: query
+          schema:
+            type: string
+          description: جستجو بر اساس ایمیل
+        - name: mobile
+          in: query
+          schema:
+            type: string
+          description: جستجو بر اساس شماره همراه
+        - name: from_date
+          in: query
+          schema:
+            type: string
+          description: تاریخ شروع (YYYY-MM-DD) براساس تاریخ ایجاد فاکتور
+        - name: to_date
+          in: query
+          schema:
+            type: string
+          description: تاریخ پایان (YYYY-MM-DD) براساس تاریخ ایجاد فاکتور
+      responses:
+        '200':
+          description: Success
+        '401':
+          description: Unauthorized
+        '500':
+          description: Server error
+
+  /api/v1/admin/publishers/{id}:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get publisher by ID
+      description: Retrieve a single publisher by its ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: Publisher ID
+      responses:
+        '200':
+          description: Publisher retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 1
+                      title:
+                        type: string
+                        example: "انتشارات نمونه"
+                      slug:
+                        type: string
+                        example: "entesharat-namune"
+                      logo:
+                        type: string
+                        nullable: true
+                        example: null
+                      description:
+                        type: string
+                        nullable: true
+                        example: null
+                      website:
+                        type: string
+                        nullable: true
+                        example: null
+                      created_at:
+                        type: string
+                        example: "2026-01-29 13:35:00"
+                  message:
+                    type: string
+                    example: "ناشر با موفقیت دریافت شد"
+                  error:
+                    type: boolean
+                    example: false
+                  status:
+                    type: integer
+                    example: 200
+        '404':
+          description: Publisher not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: "ناشر یافت نشد"
+                  error:
+                    type: boolean
+                    example: true
+                  status:
+                    type: integer
+                    example: 404
+
+  # =====================================
+  # Roles Management APIs
+  # =====================================
+  /api/v1/admin/roles/list:
+    get:
+      tags:
+        - Admin Panel
+      summary: لیست تمام نقش‌ها
+      description: دریافت لیست تمام نقش‌های سیستم (فقط سوپرادمین)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: لیست نقش‌ها با موفقیت دریافت شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          example: 1
+                        name:
+                          type: string
+                          example: "super_admin"
+                        display_name:
+                          type: string
+                          example: "سوپر ادمین"
+                        description:
+                          type: string
+                        priority:
+                          type: integer
+                          example: 100
+                        is_active:
+                          type: boolean
+                          example: true
+        '403':
+          description: عدم دسترسی
+
+  /api/v1/admin/roles/{id}:
+    get:
+      tags:
+        - Admin Panel
+      summary: دریافت یک نقش با دسترسی‌هایش
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          description: شناسه نقش
+      responses:
+        '200':
+          description: نقش با موفقیت دریافت شد
+
+  /api/v1/admin/roles/assign-permission:
+    post:
+      tags:
+        - Admin Panel
+      summary: تخصیص دسترسی به نقش
+      description: اختصاص یک permission به یک role (فقط سوپرادمین)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - role_id
+                - permission_id
+              properties:
+                role_id:
+                  type: integer
+                  example: 2
+                permission_id:
+                  type: integer
+                  example: 5
+      responses:
+        '200':
+          description: دسترسی با موفقیت تخصیص داده شد
+
+  /api/v1/admin/roles/assign-to-user:
+    post:
+      tags:
+        - Admin Panel
+      summary: تخصیص نقش به کاربر
+      description: اختصاص یک role به یک کاربر
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - role_id
+              properties:
+                user_id:
+                  type: integer
+                  example: 3106
+                role_id:
+                  type: integer
+                  example: 1
+                  description: "1=Super Admin, 2=Admin, 3=Operator, 4=User"
+      responses:
+        '200':
+          description: نقش با موفقیت تخصیص داده شد
+
+  /api/v1/admin/permissions/list:
+    get:
+      tags:
+        - Admin Panel
+      summary: لیست تمام دسترسی‌ها
+      description: دریافت لیست تمام permissions (فقط سوپرادمین)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: "فیلتر بر اساس category (مثال: users, books, publishers)"
+      responses:
+        '200':
+          description: لیست دسترسی‌ها با موفقیت دریافت شد
+
+  /api/v1/admin/permissions/grouped:
+    get:
+      tags:
+        - Admin Panel
+      summary: دریافت دسترسی‌ها به تفکیک category
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: دسترسی‌ها با موفقیت دسته‌بندی شدند
+
+  /api/v1/admin/permissions/user/{user_id}:
+    get:
+      tags:
+        - Admin Panel
+      summary: دریافت دسترسی‌های یک کاربر
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: دسترسی‌های کاربر با موفقیت دریافت شد
+
+  # ============================================
+  # Book Contents Management
+  # ============================================
+
+  /api/v1/admin/books/{book_id}/pages/list:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get list of pages in a book
+      description: Returns a list of all pages with their paragraph counts
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Pages retrieved successfully
+
+  /api/v1/admin/books/{book_id}/pages/{page_number}:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get all contents for a specific page
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page_number
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Page contents retrieved successfully
+
+    delete:
+      tags:
+        - Admin Panel
+      summary: Delete entire page
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page_number
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Page deleted successfully
+
+  /api/v1/admin/books/{book_id}/pages/create:
+    post:
+      tags:
+        - Admin Panel
+      summary: Create a new page
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  description: Optional initial text for the page
+                index_title:
+                  type: string
+                  description: Optional title to add page to table of contents
+      responses:
+        '200':
+          description: Page created successfully
+
+  /api/v1/admin/books/{book_id}/pages/{page_number}/paragraphs:
+    post:
+      tags:
+        - Admin Panel
+      summary: Add a paragraph to an existing page
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page_number
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Paragraph added successfully
+
+  /api/v1/admin/books/{book_id}/contents:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get all contents with pagination and filters
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page_number
+          in: query
+          schema:
+            type: integer
+          description: Filter by page number
+        - name: index_only
+          in: query
+          schema:
+            type: boolean
+          description: Only return index items
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Contents retrieved successfully
+
+    post:
+      tags:
+        - Admin Panel
+      summary: Create new content (paragraph)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - page_number
+              properties:
+                page_number:
+                  type: integer
+                paragraph_number:
+                  type: integer
+                text:
+                  type: string
+                description:
+                  type: string
+                order:
+                  type: integer
+                is_index:
+                  type: boolean
+                index_title:
+                  type: string
+                index_level:
+                  type: integer
+      responses:
+        '200':
+          description: Content created successfully
+
+  /api/v1/admin/books/{book_id}/contents/{id}:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get a single content by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Content retrieved successfully
+
+    put:
+      tags:
+        - Admin Panel
+      summary: Update content
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                description:
+                  type: string
+                page_number:
+                  type: integer
+                paragraph_number:
+                  type: integer
+      responses:
+        '200':
+          description: Content updated successfully
+
+    delete:
+      tags:
+        - Admin Panel
+      summary: Delete content
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Content deleted successfully
+
+  /api/v1/admin/books/{book_id}/index:
+    get:
+      tags:
+        - Admin Panel
+      summary: Get book index (table of contents)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Index retrieved successfully
+
+  /api/v1/admin/books/{book_id}/contents/{id}/set-index:
+    post:
+      tags:
+        - Admin Panel
+      summary: Set content as index item
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  description: Title to show in table of contents
+                level:
+                  type: integer
+                  description: Index level (1, 2, 3...)
+                  default: 1
+      responses:
+        '200':
+          description: Content set as index item
+
+  /api/v1/admin/books/{book_id}/contents/{id}/upload-audio:
+    post:
+      tags:
+        - Admin Panel
+      summary: Upload audio to content
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - audio
+              properties:
+                audio:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Audio uploaded successfully
+
+  /api/v1/admin/books/{book_id}/contents/{id}/upload-image:
+    post:
+      tags:
+        - Admin Panel
+      summary: Upload image to content
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Image uploaded successfully
+
+  /api/v1/admin/books/{book_id}/contents/batch:
+    post:
+      tags:
+        - Admin Panel
+      summary: Batch create contents (for importing)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - contents
+              properties:
+                contents:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      page_number:
+                        type: integer
+                      paragraph_number:
+                        type: integer
+                      text:
+                        type: string
+                      is_index:
+                        type: boolean
+                      index_title:
+                        type: string
+      responses:
+        '200':
+          description: Contents created successfully
+
+  /api/v1/admin/books/{book_id}/contents/search:
+    get:
+      tags:
+        - Admin Panel
+      summary: Search in book contents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+      responses:
+        '200':
+          description: Search results
+
+  /api/v1/admin/books/{book_id}/contents/reorder:
+    put:
+      tags:
+        - Admin Panel
+      summary: Reorder contents
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ordered_ids
+              properties:
+                ordered_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: Array of content IDs in desired order
+      responses:
+        '200':
+          description: Contents reordered successfully
+
+  # ========== User API: Books (Public) ==========
+  /api/v1/books:
+    get:
+      tags:
+        - App
+      summary: List books
+      description: Returns paginated list of books. Fast, lightweight response.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: publisher_id
+          in: query
+          schema:
+            type: integer
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search in book titles
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, popular, rating, price_asc, price_desc]
+            default: newest
+      responses:
+        '200':
+          description: Paginated books list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BookListItem'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+
+  /api/v1/books/{id}:
+    get:
+      tags:
+        - App
+      summary: Get book details (high-speed)
+      description: |
+        Returns full book details with category, publisher, authors, features, and table of contents.
+        Optimized for speed - single database query with JOINs.
+        Includes book index (table of contents) in response.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Book details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/BookDetails'
+        '404':
+          description: Book not found
+
+  /api/v1/books/buy:
+    post:
+      tags:
+        - App
+      summary: خرید کتاب
+      description: |
+        ایجاد فاکتور خرید کتاب. نیاز به توکن (Bearer) دارد.
+        در بدنه درخواست `book_id` (اجباری) و `code` (اختیاری، کد تخفیف) ارسال شود.
+        در صورت رایگان بودن یا اعمال تخفیف کامل، کتاب به کتابخانه کاربر اضافه می‌شود؛
+        وگرنه لینک پرداخت برگردانده می‌شود.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - book_id
+              properties:
+                book_id:
+                  type: integer
+                  description: شناسه محصول (کتاب)
+                code:
+                  type: string
+                  description: کد تخفیف (اختیاری)
+            example:
+              book_id: 123
+              code: "SUMMER20"
+      responses:
+        '200':
+          description: موفق
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      free:
+                        type: boolean
+                        description: true اگر کتاب رایگان یا با تخفیف کامل به کتابخانه اضافه شده باشد
+                      link:
+                        type: string
+                        nullable: true
+                        description: لینک پرداخت (در صورت نیاز به پرداخت)
+                      factor:
+                        type: object
+                        description: اطلاعات فاکتور (تراکنش)
+                  message:
+                    type: string
+        '400':
+          description: book_id معتبر نیست
+        '401':
+          description: Unauthorized
+        '404':
+          description: کتاب یافت نشد
+
+  /api/v1/profile/library:
+    get:
+      tags:
+        - App
+      summary: کتابخانه من
+      description: |
+        لیست کتاب‌های کاربر که در user_library ثبت شده‌اند (خریداری‌شده یا رایگانِ اضافه‌شده).
+        نیاز به توکن (Bearer) دارد.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BookLibraryItem'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+        '401':
+          description: Unauthorized
+
+  # ========== User API: Book Reviews ==========
+  /api/v1/books/{book_id}/reviews:
+    get:
+      tags:
+        - App
+      summary: List book reviews (public)
+      description: Returns paginated reviews with user info and rating summary.
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [newest, oldest, helpful, rating_high, rating_low]
+            default: newest
+      responses:
+        '200':
+          description: Reviews list with summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/BookReview'
+                      pagination:
+                        $ref: '#/components/schemas/Pagination'
+                      summary:
+                        $ref: '#/components/schemas/ReviewSummary'
+    post:
+      tags:
+        - App
+      summary: Create a review (auth required)
+      description: Submit a review for a book. One review per user per book.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rating
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                text:
+                  type: string
+                  description: Review text (optional)
+      responses:
+        '200':
+          description: Review created
+        '400':
+          description: Already reviewed or invalid rating
+
+  /api/v1/books/{book_id}/reviews/{id}:
+    put:
+      tags:
+        - App
+      summary: Update own review (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                text:
+                  type: string
+      responses:
+        '200':
+          description: Review updated
+        '403':
+          description: Not owner of review
+        '404':
+          description: Review not found
+    delete:
+      tags:
+        - App
+      summary: Delete own review (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Review deleted
+        '403':
+          description: Not owner of review
+        '404':
+          description: Review not found
+
+  /api/v1/books/{book_id}/reviews/{id}/like:
+    post:
+      tags:
+        - App
+      summary: Like/unlike a review (auth required)
+      description: Toggle like on a review. Returns new like status.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Like toggled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  liked:
+                    type: boolean
+                  message:
+                    type: string
+
+  # ========== User API: Book Actions (cart/read/study desk) ==========
+  /api/v1/books/{book_id}/cart:
+    post:
+      tags:
+        - App
+      summary: Add book to cart (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Added to cart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  in_cart:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Book not found
+    delete:
+      tags:
+        - App
+      summary: Remove book from cart (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Removed from cart
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  in_cart:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Book not found
+
+  /api/v1/books/{book_id}/read:
+    post:
+      tags:
+        - App
+      summary: Mark book as read (auth required)
+      description: Requires access to the book.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_read:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '403':
+          description: No access to book
+        '404':
+          description: Book not found
+    delete:
+      tags:
+        - App
+      summary: Unmark book as read (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Unmarked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_read:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Book not found
+
+  /api/v1/books/{book_id}/desk:
+    post:
+      tags:
+        - App
+      summary: Add book to study desk (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Added to study desk
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  on_desk:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Book not found
+    delete:
+      tags:
+        - App
+      summary: Remove book from study desk (auth required)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Removed from study desk
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  on_desk:
+                    type: boolean
+                  message:
+                    type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Book not found
+
+  # ========== User API: Read book content (requires user Bearer token) ==========
+  /api/v1/books/{book_id}/pages/list:
+    get:
+      tags:
+        - App
+      summary: List pages of a book
+      description: Returns list of pages with paragraph count and optional page title. Requires user authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of pages
+
+  /api/v1/books/{book_id}/pages/{page_number}:
+    get:
+      tags:
+        - App
+      summary: Get page contents
+      description: Returns all paragraphs for a specific page. Requires user authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page_number
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Page contents (paragraphs)
+
+  /api/v1/books/{book_id}/contents:
+    get:
+      tags:
+        - App
+      summary: List book contents with pagination
+      description: "Returns paginated contents. Query params: page, per_page, page_number, index_only, sort_by, sort_order."
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: page_number
+          in: query
+          schema:
+            type: integer
+            description: Filter by page number
+        - name: index_only
+          in: query
+          schema:
+            type: boolean
+            description: Only index (table of contents) items
+      responses:
+        '200':
+          description: Paginated contents
+
+  /api/v1/books/{book_id}/contents/full:
+    get:
+      tags:
+        - App
+      summary: Download full book contents (one-shot)
+      description: |
+        Returns all contents of the book in one response (no pagination).
+        Use for one-shot download: client waits once, then caches and navigates pages locally.
+        Send **Accept-Encoding: gzip** for compressed response (recommended).
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: Accept-Encoding
+          in: header
+          required: false
+          schema:
+            type: string
+            example: gzip
+          description: Send gzip for compressed response (smaller payload)
+      responses:
+        '200':
+          description: Full book contents (items, total, total_pages)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        description: All content rows ordered by page_number, paragraph_number
+                        items:
+                          $ref: '#/components/schemas/BookContentItem'
+                      total:
+                        type: integer
+                        description: Total number of content rows
+                      total_pages:
+                        type: integer
+                        description: Highest page number in the book
+        '400':
+          description: Invalid book ID
+
+  /api/v1/books/{book_id}/contents/search:
+    get:
+      tags:
+        - App
+      summary: Search in book content
+      description: Full-text search in book content. Requires user authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Search results with highlight
+
+  /api/v1/books/{book_id}/contents/{id}:
+    get:
+      tags:
+        - App
+      summary: Get single content by ID
+      description: Returns one content (paragraph) by ID. Requires user authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Content object
+        '404':
+          description: Content not found
+
+  /api/v1/books/{book_id}/index:
+    get:
+      tags:
+        - App
+      summary: Get book table of contents
+      description: Returns table of contents (index) of the book. Requires user authentication.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: book_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Table of contents (index entries)
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    BookContentItem:
+      type: object
+      description: Single content row (paragraph) - no tsv in full download
+      properties:
+        id:
+          type: integer
+        book_id:
+          type: integer
+        page_number:
+          type: integer
+        paragraph_number:
+          type: integer
+        order:
+          type: integer
+        text:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        sound_path:
+          type: string
+          nullable: true
+        image_paths:
+          type: array
+          items:
+            type: string
+          description: Parsed JSON array of image paths
+        video_path:
+          type: string
+          nullable: true
+        is_index:
+          type: boolean
+        index_title:
+          type: string
+          nullable: true
+        index_level:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BookListItem:
+      type: object
+      description: Book item in list (lightweight)
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        slug:
+          type: string
+        cover_image:
+          type: string
+          nullable: true
+        price:
+          type: integer
+        price_with_discount:
+          type: integer
+          nullable: true
+        rating:
+          type: number
+          format: float
+        rating_count:
+          type: integer
+        author:
+          type: string
+          nullable: true
+        category:
+          type: string
+          nullable: true
+        page_count:
+          type: integer
+    BookLibraryItem:
+      type: object
+      description: Book item in user's library
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        slug:
+          type: string
+        cover_image:
+          type: string
+          nullable: true
+        price:
+          type: integer
+        price_with_discount:
+          type: integer
+          nullable: true
+        category:
+          type: object
+          nullable: true
+        authors:
+          type: string
+          nullable: true
+        translators:
+          type: string
+          nullable: true
+        features:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        permission:
+          type: boolean
+    BookDetails:
+      type: object
+      description: Full book details (high-speed single query)
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        cover_image:
+          type: string
+          nullable: true
+        price:
+          type: integer
+        price_with_discount:
+          type: integer
+          nullable: true
+        rating:
+          type: object
+          properties:
+            avg:
+              type: number
+              format: float
+            count:
+              type: integer
+        category:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            title:
+              type: string
+            path:
+              type: string
+        publisher:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+            title:
+              type: string
+        authors:
+          type: string
+          nullable: true
+          description: Comma-separated author names
+        translators:
+          type: string
+          nullable: true
+          description: Comma-separated translator names
+        features:
+          type: object
+          properties:
+            page_count:
+              type: integer
+            has_sound:
+              type: boolean
+            has_description:
+              type: boolean
+            has_test:
+              type: boolean
+            has_tashrihi:
+              type: boolean
+            has_translation:
+              type: boolean
+            has_membership:
+              type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    BookIndexItem:
+      type: object
+      description: Table of contents item
+      properties:
+        id:
+          type: integer
+        part_id:
+          type: integer
+        name:
+          type: string
+        level:
+          type: integer
+        page_number:
+          type: integer
+    Pagination:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total_pages:
+          type: integer
+    BookReview:
+      type: object
+      properties:
+        id:
+          type: integer
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        text:
+          type: string
+          nullable: true
+        likes_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        user:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            avatar:
+              type: string
+              nullable: true
+    ReviewSummary:
+      type: object
+      properties:
+        avg_rating:
+          type: number
+          format: float
+        total_reviews:
+          type: integer
+        distribution:
+          type: object
+          description: Count of reviews per rating (1-5)
+          properties:
+            "5":
+              type: integer
+            "4":
+              type: integer
+            "3":
+              type: integer
+            "2":
+              type: integer
+            "1":
+              type: integer
